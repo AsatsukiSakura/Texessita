@@ -1,0 +1,15 @@
+{
+  "name": "texas-holdem",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Texessita",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev -w backend",
+    "frontend:dev": "npm run dev -w frontend",
+    "dev": "npm run backend:dev & npm run frontend:dev"
+  }
+}
