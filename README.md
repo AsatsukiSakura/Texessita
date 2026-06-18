@@ -1,144 +1,126 @@
 # Texessita
 
-基于 TypeScript 的多人德州扑克（Texas Hold'em）在线游戏。自托管架构：一人运行服务端，其他人通过浏览器连接即可同台竞技，所有数据存于服务端内存。
+一个基于 TypeScript 的多人在线德州扑克（No-Limit Texas Hold'em）游戏，采用前后端分离的 monorepo 架构。
 
-## 技术栈
+## 项目简介
 
-| 层 | 技术 |
-|---|---|
-| 后端语言 | TypeScript (ESM) |
-| 运行时 | Node.js + tsx |
-| 实时通信 | WebSocket (ws) |
-| 扑克评估 | poker-evaluator |
-| 前端框架 | Vue 3 + Vite |
-| 包管理 | npm workspaces (monorepo) |
+Texessita 实现了完整的德州扑克游戏规则，支持最多 9 人同时在线对战。后端包含完整的游戏引擎、逻辑控制和 WebSocket 网络通信，前端基于 Vue 3 + Vite 搭建（开发中）。
 
 ## 项目结构
 
 ```
 Texessita/
-├── backend/
-│   ├── engine/               # 纯扑克引擎（零外部依赖）
-│   │   ├── types.ts          # 花色/点数/牌型/游戏阶段/玩家/状态等全部类型定义
-│   │   ├── card.ts           # 52 张牌堆创建、Fisher-Yates 洗牌、发牌
-│   │   ├── converter.ts      # Card ↔ poker-evaluator 字符串格式双向转换
-│   │   └── evaluator.ts      # 手牌评估（C(7,5) 枚举找最优 5 张组合）
-│   ├── game/                 # 游戏流程控制（纯函数 + 编排器）
-│   │   ├── actions.ts        # 行动校验与执行（fold/check/call/raise/all-in）
-│   │   ├── round.ts          # 下注轮管理：盲注收取、阶段推进、发公共牌
-│   │   ├── showdown.ts       # 摊牌判定：边池拆分、手牌比较、筹码分配
-│   │   └── controller.ts     # GameController 编排器（串联全部流程）
-│   ├── network/              # WebSocket 通信层
-│   │   ├── protocol.ts       # 消息类型定义（ClientMessage / ServerMessage）
-│   │   └── server.ts         # WS 服务：消息路由、行动超时、心跳检测、自动开局
-│   ├── types/                # 第三方库类型声明
-│   └── index.ts              # 服务端入口（配置 + 启动）
-├── frontend/                 # Vue 3 + Vite 前端（骨架已搭建）
-│   ├── index.html
-│   ├── package.json
-│   └── tsconfig.json
-└── package.json              # monorepo 根配置（workspaces）
+├── backend/                 # 后端服务
+│   ├── engine/              # 扑克牌引擎（纯计算，零副作用）
+│   │   ├── types.ts         #   核心类型定义（牌、牌型、游戏状态等）
+│   │   ├── card.ts          #   牌组操作（创建、洗牌、发牌）
+│   │   ├── converter.ts     #   Card 对象与 poker-evaluator 格式互转
+│   │   └── evaluator.ts     #   手牌评估（C(7,5) 最优 5 张枚举）
+│   ├── game/                # 游戏逻辑层
+│   │   ├── actions.ts       #   行动校验与执行（纯函数）
+│   │   ├── round.ts         #   下注轮管理与阶段推进（纯函数）
+│   │   ├── showdown.ts      #   摊牌与边池分配算法（纯函数）
+│   │   └── controller.ts    #   GameController 编排器（状态管理）
+│   ├── network/             # 网络层
+│   │   ├── protocol.ts      #   WebSocket 消息协议类型定义
+│   │   └── server.ts        #   WebSocket 服务器（心跳、超时、断线处理）
+│   └── index.ts             # 服务入口
+├── frontend/                # 前端（Vue 3 + Vite，开发中）
+│   └── index.html
+├── package.json             # Monorepo 根配置（npm workspaces）
+└── tsconfig.json            # TypeScript Project References
 ```
 
-## 功能特性
+## 技术栈
 
-### 扑克引擎
+| 层面       | 技术                  | 版本    |
+| ---------- | --------------------- | ------- |
+| 语言       | TypeScript (ESM)      | 5.9.3   |
+| 后端运行时 | Node.js + tsx         | -       |
+| WebSocket  | ws                    | ^8.21.0 |
+| 牌型评估   | poker-evaluator       | ^2.1.1  |
+| 前端框架   | Vue 3                 | ^3.5.38 |
+| 构建工具   | Vite                  | ^8.0.16 |
+| 包管理     | npm workspaces        | -       |
 
-- 标准 52 张牌堆，Fisher-Yates 洗牌算法
-- 基于 `poker-evaluator` 的手牌评估，从 7 张牌中枚举 C(7,5)=21 种组合找出最优 5 张
-- 支持全部 10 种牌型：皇家同花顺、同花顺、四条、葫芦、同花、顺子、三条、两对、一对、高牌
+## 核心功能
 
-### 游戏流程
-
-- 完整的 Preflop → Flop → Turn → River → Showdown 阶段流转
-- 小盲/大盲自动收取，支持 2 人单挑（Heads-Up）特殊规则
-- 加注最小额校验、All-In 自动判定为 raise 或 call
-- 弃牌获胜 / 全员 All-In 直入摊牌等边界处理
-
-### 边池系统
-
-- 按玩家贡献额逐层拆分边池
-- 每个边池独立比牌，支持多人平局均分（余数归首位赢家）
-
-### 网络服务
-
-- JSON over WebSocket 双向通信
-- 心跳检测：15 秒间隔 ping/pong，断线自动清理
-- 行动超时：30 秒无操作自动弃牌并踢出
-- 自动开局：一局结束 3 秒后自动开始下一局
-- 玩家加入/离开/断线广播通知
-
-## 开发进度
-
-- [x] 基础类型定义（牌/牌型/玩家/游戏状态/操作结果）
-- [x] 扑克引擎（牌堆/洗牌/发牌/格式转换/手牌评估）
-- [x] 游戏流程控制器（盲注→下注轮→摊牌→边池→筹码分配）
-- [x] WebSocket 服务器（消息协议/行动超时/心跳检测/自动开局）
-- [ ] 前端牌桌 UI（Vue 3 + Vite，骨架已搭建）
+- **完整德州扑克规则**：支持 Fold / Check / Call / Raise / AllIn 五种操作，Preflop / Flop / Turn / River / Showdown 五个阶段
+- **边池分配算法**：正确处理多人 AllIn 场景下的分层边池切分和平局均分
+- **最优手牌评估**：枚举 C(7,5)=21 种组合，精确定位最优 5 张牌
+- **纯函数式设计**：游戏逻辑层全部采用纯函数，便于测试和推理
+- **类型安全协议**：WebSocket 消息使用 TypeScript 联合类型定义，编译期保证类型正确
+- **服务器健壮性**：心跳检测、行动超时自动弃牌、断线处理、自动开局
+- **单挑模式**：正确处理 2 人对决时的盲注和行动顺序
 
 ## 快速开始
 
+### 环境要求
+
+- Node.js >= 18
+- npm >= 9
+
+### 安装依赖
+
 ```bash
-# 安装依赖（使用 nested 策略避免 hoisting 问题）
-npm install --install-strategy=nested
+npm install
+```
 
-# 启动后端 WebSocket 服务
+### 启动后端
+
+```bash
 npm run backend:dev
-# → ws://localhost:3000
+```
 
-# 启动前端开发服务器（开发中）
+服务默认运行在 `ws://localhost:3000`，可通过 `PORT` 环境变量修改端口。
+
+### 启动前端
+
+```bash
 npm run frontend:dev
+```
 
-# 同时启动前后端
+### 同时启动前后端
+
+```bash
 npm run dev
 ```
 
-## 配置
-
-默认游戏参数（可在 `backend/index.ts` 中修改）：
-
-| 参数 | 默认值 | 说明 |
-|---|---|---|
-| `maxPlayers` | 9 | 最大玩家数 |
-| `startingChips` | 1000 | 每人起始筹码 |
-| `smallBlind` | 5 | 小盲注 |
-| `bigBlind` | 10 | 大盲注 |
-| `actionTimeoutMs` | 30000 | 行动超时（毫秒） |
-| `heartbeatIntervalMs` | 15000 | 心跳间隔（毫秒） |
-| `PORT` | 3000 | 服务端口（环境变量） |
-
 ## WebSocket 协议
-
-客户端与服务端通过 JSON over WebSocket 通信。
 
 ### 客户端 → 服务端
 
-| 消息 | 说明 |
-|---|---|
-| `{"type":"join", "name":"Alice"}` | 加入游戏 |
-| `{"type":"start_hand"}` | 开始一局 |
-| `{"type":"action", "action":"fold"}` | 弃牌 |
-| `{"type":"action", "action":"check"}` | 过牌 |
-| `{"type":"action", "action":"call"}` | 跟注 |
-| `{"type":"action", "action":"raise", "amount":50}` | 加注到指定金额 |
-| `{"type":"action", "action":"all-in"}` | 全下 |
-| `{"type":"leave"}` | 离开游戏 |
+| 消息类型      | 参数                  | 说明       |
+| ------------- | --------------------- | ---------- |
+| `join`        | `name: string`        | 加入游戏   |
+| `start_hand`  | -                     | 开始一局   |
+| `action`      | `action, amount?`     | 执行操作   |
+| `leave`       | -                     | 离开游戏   |
 
 ### 服务端 → 客户端
 
-| 消息 | 说明 |
-|---|---|
-| `{"type":"joined", "playerId":"p1"}` | 加入成功 |
-| `{"type":"game_state", "state":{...}}` | 游戏状态同步（广播） |
-| `{"type":"your_turn", ...}` | 轮到你行动（含可选操作和超时时间） |
-| `{"type":"hand_over", "winners":[...], "state":{...}}` | 本局结束 |
-| `{"type":"player_joined", ...}` | 玩家加入通知 |
-| `{"type":"player_left", ...}` | 玩家离开通知 |
-| `{"type":"waiting", "message":"..."}` | 等待更多玩家 |
-| `{"type":"error", "message":"..."}` | 错误信息 |
+| 消息类型       | 说明                                   |
+| -------------- | -------------------------------------- |
+| `joined`       | 加入成功，返回 playerId                |
+| `game_state`   | 完整游戏状态快照                       |
+| `your_turn`    | 轮到你行动（含可执行操作信息）         |
+| `hand_over`    | 牌局结束（赢家 + 最终状态）            |
+| `error`        | 错误消息                               |
+| `waiting`      | 等待更多玩家加入                       |
+| `player_joined`| 新玩家加入通知                         |
+| `player_left`  | 玩家离开通知                           |
 
-详见 [protocol.ts](backend/network/protocol.ts)。
+## 游戏配置
 
-## 许可证
+```typescript
+{
+  maxPlayers: 9,        // 最大玩家数
+  startingChips: 1000,  // 起始筹码
+  smallBlind: 5,        // 小盲注
+  bigBlind: 10,         // 大盲注
+}
+```
+
+## License
 
 MIT
