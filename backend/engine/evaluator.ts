@@ -1,4 +1,4 @@
-import { Card, HandRank, HandEvaluation, CompareResult } from './types'
+import { Card, HandRank, HandEvaluation } from './types'
 import { cardToPokerString } from './converter'
 import { evalHand, EvaluatedHand } from 'poker-evaluator'
 
@@ -39,15 +39,6 @@ export function evaluate(holeCards: Card[], communityCards: Card[]): HandEvaluat
   return { rank: handRank, kickers, bestFive }
 }
 
-/** 比较两副手牌，返回胜负 */
-export function compareHands(a: HandEvaluation, b: HandEvaluation): CompareResult {
-  const aValue = evaluateToValue(a)
-  const bValue = evaluateToValue(b)
-  if (aValue > bValue) return CompareResult.Win
-  if (aValue < bValue) return CompareResult.Lose
-  return CompareResult.Tie
-}
-
 // --------------------------------------------------
 // 内部工具
 // --------------------------------------------------
@@ -67,12 +58,6 @@ function mapToHandRank(result: EvaluatedHand): HandRank {
     case 1: return HandRank.HighCard
     default: return HandRank.HighCard
   }
-}
-
-/** 将 HandEvaluation 转换回 poker-evaluator 可用于比大小的数值 */
-function evaluateToValue(hand: HandEvaluation): number {
-  const strings = hand.bestFive.map(cardToPokerString)
-  return evalHand(strings).value
 }
 
 /** 生成 C(n, k) 所有组合 */

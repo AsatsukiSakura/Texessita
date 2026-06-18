@@ -140,6 +140,19 @@ export class GameController {
     return this.snapshot()
   }
 
+  getLastRaiseSize(): number {
+    return this.lastRaiseSize
+  }
+
+  /** 牌局结束后清理：将筹码归零的玩家标记为 Out */
+  cleanupAfterHand(): void {
+    for (const p of this.state.players) {
+      if (p.chips === 0) {
+        p.status = PlayerStatus.Out
+      }
+    }
+  }
+
   // ---- 内部 ----
 
   private snapshot(): GameState {
